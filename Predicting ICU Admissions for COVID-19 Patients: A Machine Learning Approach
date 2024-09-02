@@ -1,0 +1,230 @@
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.metrics import classification_report, accuracy_score, f1_score, confusion_matrix
+
+# Load the dataset
+file_path = "C:/FinalICUBedsCOVID/LibanesICUPrediction.xlsx"
+data = pd.read_excel(file_path)
+
+# Convert non-numeric columns to numeric values
+def convert_percentile(value):
+    if isinstance(value, str):
+        if value.endswith('th'):
+            try:
+                return int(value.rstrip('th'))
+            except ValueError:
+                return None
+        elif value.startswith('Above'):
+            return 91
+    return value
+
+non_numeric_columns = ['AGE_PERCENTIL']
+for col in non_numeric_columns:
+    data[col] = data[col].apply(convert_percentile)
+
+# Drop remaining non-numeric columns
+data = data.select_dtypes(include=['number'])
+
+# Handle missing values
+data.fillna(data.median(), inplace=True)
+
+# Visual 1: ICU admission rate by age percentile
+plt.figure(figsize=(10, 6))
+age_group_icu_rate = data.groupby('AGE_PERCENTIL')['ICU'].mean()
+sns.barplot(x=age_group_icu_rate.index, y=age_group_icu_rate.values)
+plt.title('ICU Admission Rate by Age Percentile')
+plt.xlabel('Age Percentile')
+plt.ylabel('ICU Admission Rate')
+plt.show()
+
+# Visual 2: Enhanced Correlation Heatmap of Top 5 Correlated Features
+# Calculate the correlation matrix
+corr_matrix = data.corr()
+
+# Select the top 5 features most correlated with ICU (including ICU itself)
+target_variable = 'ICU'
+top_corr_features = corr_matrix[target_variable].abs().sort_values(ascending=False).head(6).index
+
+# Create a correlation matrix for only the top correlated features
+top_corr_matrix = corr_matrix.loc[top_corr_features, top_corr_features]
+
+# Visual 2: Enhanced Correlation Heatmap of Top 5 Correlated Features
+plt.figure(figsize=(10, 8))  # Appropriate figure size for focused view
+sns.heatmap(top_corr_matrix, annot=True, fmt=".2f", cmap='coolwarm',
+            linewidths=0.5, linecolor='white', square=True,
+            cbar_kws={"shrink": .75}, annot_kws={"size": 12})
+
+plt.title('Enhanced Correlation Matrix of Top 5 Features with ICU', fontsize=18)
+plt.xticks(fontsize=12, rotation=45, ha='right')
+plt.yticks(fontsize=12)
+plt.tight_layout()  # Ensures everything fits within the figure
+plt.show()
+
+# Visual 3: Distribution of ICU admissions
+plt.figure(figsize=(10, 6))
+sns.countplot(x='ICU', data=data)
+plt.title('Distribution of ICU Admissions')
+plt.xlabel('ICU Admission (0 = No, 1 = Yes)')
+plt.ylabel('Count')
+plt.show()
+
+# Visual 4: Boxplot of Albumin levels by ICU admission
+plt.figure(figsize=(10, 6))
+sns.boxplot(x='ICU', y='ALBUMIN_MEAN', data=data)
+plt.title('Albumin Levels by ICU Admission')
+plt.xlabel('ICU Admission (0 = No, 1 = Yes)')
+plt.ylabel('Albumin Mean Level')
+plt.show()
+
+# Visual 5: Violin plot of Respiratory Rate by ICU admission
+plt.figure(figsize=(10, 6))
+sns.violinplot(x='ICU', y='RESPIRATORY_RATE_MEAN', data=data)
+plt.title('Respiratory Rate by ICU Admission')
+plt.xlabel('ICU Admission (0 = No, 1 = Yes)')
+plt.ylabel('Respiratory Rate Mean')
+plt.show()
+
+# Visual 6: Scatter plot of Neutrophiles and Lymphocytes
+plt.figure(figsize=(10, 6))
+sns.scatterplot(x='NEUTROPHILES_MEAN', y='LINFOCITOS_MEAN', hue='ICU', data=data, alpha=0.5)
+plt.title('Neutrophiles vs Lymphocytes by ICU Admission')
+plt.xlabel('Neutrophiles Mean')
+plt.ylabel('Lymphocytes Mean')
+plt.show()
+
+# Visual 7: Histogram of Age distribution by ICU admission
+plt.figure(figsize=(10, 6))
+sns.histplot(data, x='AGE_ABOVE65', hue='ICU', multiple='stack')
+plt.title('Age Distribution by ICU Admission')
+plt.xlabel('Age (0 = Below 65, 1 = Above 65)')
+plt.ylabel('Count')
+plt.show()
+
+# Visual 8: Pairplot of selected features
+sns.pairplot(data[['AGE_PERCENTIL', 'ALBUMIN_MEAN', 'RESPIRATORY_RATE_MEAN', 'ICU']], hue='ICU')
+plt.suptitle('Pairplot of Selected Features by ICU Admission', y=1.02)
+plt.show()
+
+# Visual 9: Histogram with a KDE (Kernel Density Estimation) overlay
+sns.histplot(data['AGE_PERCENTIL'], kde=True, bins=30)
+plt.title('Age Percentile Distribution')
+plt.xlabel('Age Percentile')
+plt.ylabel('Frequency')
+plt.show()
+
+# Visual 10: Countplot of Gender by ICU admission
+# Convert non-numeric columns to numeric values
+def convert_percentile(value):
+    if isinstance(value, str):
+        if value.endswith('th'):
+            try:
+                return int(value.rstrip('th'))
+            except ValueError:
+                return None
+        elif value.startswith('Above'):
+            return 91
+    return value
+
+non_numeric_columns = ['AGE_PERCENTIL']
+for col in non_numeric_columns:
+    data[col] = data[col].apply(convert_percentile)
+
+# Drop remaining non-numeric columns
+data = data.select_dtypes(include=['number'])
+
+# Handle missing values
+data.fillna(data.median(), inplace=True)
+
+# Convert the 'GENDER' and 'ICU' columns to categorical string types
+data['GENDER'] = data['GENDER'].astype(str)
+data['ICU'] = data['ICU'].astype(str)
+
+# Visual 10: Countplot of Gender by ICU admission
+plt.figure(figsize=(10, 6))
+sns.countplot(x='GENDER', hue='ICU', data=data)
+plt.title('Gender Distribution by ICU Admission')
+plt.xlabel('Gender (0 = Male, 1 = Female)')
+plt.ylabel('Count')
+plt.legend(title='ICU Admission')
+plt.show()
+
+# Visual 11: Line plot of Oxygen Saturation by ICU admission
+plt.figure(figsize=(10, 6))
+oxygen_sat_mean = data.groupby('ICU')['OXYGEN_SATURATION_MEAN'].mean()
+sns.lineplot(x=oxygen_sat_mean.index, y=oxygen_sat_mean.values)
+plt.title('Oxygen Saturation by ICU Admission')
+plt.xlabel('ICU Admission (0 = No, 1 = Yes)')
+plt.ylabel('Oxygen Saturation Mean')
+plt.show()
+
+# Visual 12: Bar plot of diseases grouping by ICU admission
+plt.figure(figsize=(10, 6))
+disease_grouping_means = data.groupby('ICU')[['DISEASE GROUPING 1', 'DISEASE GROUPING 2', 'DISEASE GROUPING 3']].mean()
+disease_grouping_means.plot(kind='bar', stacked=True, colormap='coolwarm')
+plt.title('Disease Grouping by ICU Admission')
+plt.xlabel('ICU Admission (0 = No, 1 = Yes)')
+plt.ylabel('Mean of Disease Grouping')
+plt.show()
+
+### 2. **Model Building, Hyperparameter Tuning, and Evaluation**
+
+# Define the target variable and features
+target_variable = 'ICU'
+X = data.drop(columns=[target_variable])
+y = data[target_variable]
+
+# Split the data into training (80%) and testing (20%) sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Feature scaling
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Initialize the models
+log_reg = LogisticRegression(max_iter=1000, random_state=42)
+rf = RandomForestClassifier(n_estimators=100, random_state=42)
+svm = SVC(kernel='linear', probability=True, random_state=42)
+
+# Train the models
+log_reg.fit(X_train, y_train)
+rf.fit(X_train, y_train)
+svm.fit(X_train, y_train)
+
+# Make predictions
+y_pred_log_reg = log_reg.predict(X_test)
+y_pred_rf = rf.predict(X_test)
+y_pred_svm = svm.predict(X_test)
+
+# Ensure y_test and predictions are integers
+y_test = y_test.astype(int)
+y_pred_log_reg = y_pred_log_reg.astype(int)
+y_pred_rf = y_pred_rf.astype(int)
+y_pred_svm = y_pred_svm.astype(int)
+
+# Evaluate the models
+print("Logistic Regression:")
+print("Accuracy:", accuracy_score(y_test, y_pred_log_reg))
+print("F1 Score:", f1_score(y_test, y_pred_log_reg))
+print(classification_report(y_test, y_pred_log_reg))
+
+print("Random Forest:")
+print("Accuracy:", accuracy_score(y_test, y_pred_rf))
+print("F1 Score:", f1_score(y_test, y_pred_rf))
+print(classification_report(y_test, y_pred_rf))
+
+print("Support Vector Machine (SVM):")
+print("Accuracy:", accuracy_score(y_test, y_pred_svm))
+print("F1 Score:", f1_score(y_test, y_pred_svm))
+print(classification_report(y_test, y_pred_svm))
+
+
+
