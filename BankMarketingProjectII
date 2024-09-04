@@ -1,0 +1,119 @@
+import pandas as pd  # Library for data manipulation and analysis
+import numpy as np  # Library for numerical computations
+import matplotlib.pyplot as plt  # Library for creating static, animated, and interactive visualizations
+import seaborn as sns  # Library for making statistical graphics in Python
+from scipy.stats import pearsonr  # Function to calculate Pearson correlation coefficient and p-value
+from sklearn.model_selection import train_test_split  # Function for splitting the dataset into training and testing sets
+from sklearn.preprocessing import StandardScaler  # Function for standardizing features by removing the mean and scaling to unit variance
+from sklearn.linear_model import LogisticRegression  # Logistic Regression model
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score  # Functions for evaluating the performance of the models
+
+# Load the data
+file_path = 'C:/bank+marketing/Bank/BankFull.csv'
+try:
+    df = pd.read_csv(file_path, delimiter=';')  # Read the CSV file into a DataFrame using ';' as the delimiter
+    print("Data loaded successfully.")
+except FileNotFoundError as e:
+    print(f"Error: {e}")
+    print("Please check the file path and ensure the file exists.")
+    exit()
+except pd.errors.ParserError as e:
+    print(f"Error parsing file: {e}")
+    print("Please check the file format and delimiter.")
+    exit()
+except Exception as e:
+    print(f"An unexpected error occurred: {e}")
+    exit()
+
+# Data cleansing
+df.replace([np.inf, -np.inf], np.nan, inplace=True)  # Replace infinite values with NaN
+df.dropna(subset=['y'], inplace=True)  # Drop rows where 'y' is NaN
+
+numeric_cols = df.select_dtypes(include=[np.number]).columns  # Identify numeric columns
+categorical_cols = df.select_dtypes(include=[object]).columns  # Identify categorical columns
+
+for col in numeric_cols:
+    df[col].fillna(df[col].median(), inplace=True)  # Fill NaN values in numeric columns with the median
+
+for col in categorical_cols:
+    df[col].fillna(df[col].mode()[0], inplace=True)  # Fill NaN values in categorical columns with the mode
+
+df.drop_duplicates(inplace=True)  # Drop duplicate rows
+
+# Adding columns for balance in USD and EUR
+exchange_rate_eur_to_usd = 1.1
+if 'balance' in df.columns:
+    df['balance_usd'] = df['balance'] * exchange_rate_eur_to_usd  # Convert balance to USD
+    df['balance_eur'] = df['balance']  # Keep balance in EUR
+
+# Calculate Pearson Correlation Coefficient and P-value for 'balance' and 'age'
+corr, p_value = pearsonr(df['balance'], df['age'])
+print(f"Pearson Correlation Coefficient between 'balance' and 'age': {corr:.2f}")
+print(f"P-value: {p_value:.2e}")
+
+# 1. Distribution of the age of the clients
+plt.figure(figsize=(10, 6))
+sns.histplot(df['age'], bins=30, kde=True)  # Plot histogram and KDE of age
+plt.title('Distribution of Age')
+plt.xlabel('Age')
+plt.ylabel('Frequency')
+plt.show()
+
+# 2. Count plot of job types
+plt.figure(figsize=(12, 8))
+sns.countplot(y='job', data=df, order=df['job'].value_counts().index)  # Plot count of job types
+plt.title('Count of Job Types')
+plt.xlabel('Count')
+plt.ylabel('Job')
+plt.show()
+
+# 3. Bar plot of marital status against subscription to a term deposit
+plt.figure(figsize=(10, 6))
+sns.countplot(x='marital', hue='y', data=df, order=df['marital'].value_counts().index)  # Plot marital status vs term deposit subscription
+plt.title('Marital Status vs. Term Deposit Subscription')
+plt.xlabel('Marital Status')
+plt.ylabel('Count')
+plt.show()
+
+# 4. Heat map of the correlation matrix
+numeric_cols = df.select_dtypes(include=[np.number]).columns
+correlation_matrix = df[numeric_cols].corr()
+
+plt.figure(figsize=(14, 10))
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")  # Plot heat map of correlation matrix
+plt.title('Heat Map of Correlation Matrix')
+plt.show()
+
+# Machine Learning Model
+# Preprocess the data
+df = pd.get_dummies(df, drop_first=True)  # Convert categorical variables to dummy variables
+X = df.drop('y_yes', axis=1)  # Define features matrix X
+y = df['y_yes']  # Define target vector y
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)  # Split data into training and testing sets
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)  # Scale the training features
+X_test = scaler.transform(X_test)  # Scale the testing features
+
+# Train a logistic regression model
+model = LogisticRegression(max_iter=1000)
+model.fit(X_train, y_train)  # Train the logistic regression model
+
+# Evaluate the model
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)  # Calculate the accuracy of the model
+print(f"Model Accuracy: {accuracy:.2f}")
+print(classification_report(y_test, y_pred))  # Print the classification report
+
+# Summary
+summary = f"""
+Summary:
+This project involves predicting whether a client will subscribe to a term deposit based on various attributes using a logistic regression model.
+The dataset was cleansed by handling missing values, removing duplicates, and adding balance columns in both EUR and USD.
+We calculated the Pearson correlation coefficient between balance and age, which showed a very weak positive correlation (0.10) that is statistically significant (p-value ≈ 0.00).
+The final logistic regression model achieved an accuracy of {accuracy:.2f}, indicating the model's effectiveness in predicting the target variable.
+"""
+print(summary)  # Print a summary of the project and results
+
+#Moro,S., Rita,P., and Cortez,P.. (2012). Bank Marketing. UCI Machine Learning Repository. https://doi.org/10.24432/C5K306.
